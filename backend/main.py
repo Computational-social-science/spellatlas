@@ -130,11 +130,40 @@ async def websocket_endpoint(websocket: WebSocket):
                 }
             })
             
-    # If no real data, fallback to heartbeat or empty
+    # If no real data, fallback to simulation mode
     if not replay_queue:
-        # Send one keepalive
-        await websocket.send_json({"type": "info", "message": "No errors in database."})
-    
+        print("Warning: No data in storage. Switching to simulation mode.")
+        # Create some fake data for demonstration
+        fake_countries = [
+            {"name": "United States", "code": "USA", "lat": 37.0902, "lng": -95.7129},
+            {"name": "United Kingdom", "code": "GBR", "lat": 55.3781, "lng": -3.4360},
+            {"name": "Australia", "code": "AUS", "lat": -25.2744, "lng": 133.7751},
+            {"name": "Canada", "code": "CAN", "lat": 56.1304, "lng": -106.3468},
+            {"name": "India", "code": "IND", "lat": 20.5937, "lng": 78.9629}
+        ]
+        
+        fake_errors = [
+            {"word": "teh", "suggestion": "the", "context": "in teh world"},
+            {"word": "recieve", "suggestion": "receive", "context": "to recieve a gift"},
+            {"word": "occured", "suggestion": "occurred", "context": "it occured yesterday"},
+            {"word": "seperate", "suggestion": "separate", "context": "two seperate rooms"},
+            {"word": "definately", "suggestion": "definitely", "context": "will definately go"}
+        ]
+
+        # Generate 50 fake items
+        for _ in range(50):
+            c = random.choice(fake_countries)
+            e = random.choice(fake_errors)
+            replay_queue.append({
+                "type": "news_item",
+                "country_name": c["name"],
+                "country_code": c["code"],
+                "coordinates": {"lat": c["lat"], "lng": c["lng"]},
+                "has_error": True,
+                "title": f"Breaking News from {c['name']}: Report on Spelling",
+                "error_details": e
+            })
+
     try:
         idx = 0
         while True:
