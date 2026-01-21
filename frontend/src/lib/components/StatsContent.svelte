@@ -12,9 +12,10 @@
     async function fetchData() {
         loading = true;
         try {
+            const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
             const [topRes, curveRes] = await Promise.all([
-                fetch('http://localhost:8000/api/stats/top-errors?limit=10'),
-                fetch('http://localhost:8000/api/stats/curve?hours=24')
+                fetch(`${apiBase}/api/stats/top-errors?limit=10`),
+                fetch(`${apiBase}/api/stats/curve?hours=24`)
             ]);
             
             if (topRes.ok) topErrors = await topRes.json();

@@ -1,26 +1,97 @@
 version: '3.8'
 
 services:
+  # Database Service (Local PostgreSQL)
+  db:
+    image: postgres:15-alpine
+    container_name: spellatlas-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: spellatlas
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # MinIO Service (Local S3 compatible storage)
+  minio:
+    image: minio/minio
+    container_name: spellatlas-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Backend Service (FastAPI)
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
+    container_name: spellatlas-backend
     ports:
       - "8000:8000"
     environment:
       - PORT=8000
-      - ALLOWED_ORIGINS=*
+      - ALLOWED_ORIGINS=http://localhost:5173
+      - DATABASE_URL=postgresql://postgres:password@db:5432/spellatlas
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_BUCKET_NAME=spellatlas-local
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     volumes:
-      # Persist data/stats.db if running locally
+      # Mount source code for hot reloading
+      - ./backend:/app/backend
       - ./data:/app/data
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
 
+  # Frontend Service (Svelte/Vite)
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: spellatlas-frontend
     ports:
-      - "8080:80"
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_WS_URL=ws://localhost:8000
     depends_on:
       - backend
+    volumes:
+      # Mount source code for hot reloading
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.js:/app/vite.config.js
+      # Prevent node_modules from being overwritten
+      - /app/node_modules
     restart: unless-stopped
+
+volumes:
+  postgres_data:
+  minio_data:

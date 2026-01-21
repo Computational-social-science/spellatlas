@@ -94,7 +94,8 @@
 
             // Fetch Initial Map Stats
             try {
-                const statsRes = await fetch('http://localhost:8000/api/map-data');
+                const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+                const statsRes = await fetch(`${apiBase}/api/map-data`);
                 if (statsRes.ok) {
                     const statsData = await statsRes.json();
                     countryStats.set(statsData);

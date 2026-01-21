@@ -7,9 +7,11 @@ import os
 try:
     from backend.storage import DataStorage
     from backend.analysis import Analyzer
+    from backend.simulator import Simulator
 except ImportError:
     from storage import DataStorage
     from analysis import Analyzer
+    from simulator import Simulator
 
 app = FastAPI()
 
@@ -27,6 +29,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            # Generate a news item
+            item = Simulator.generate_item()
+            
+            # Adapt format to what frontend expects
+            payload = {
+                "type": "news_item",
+                "country_name": item["country_name"],
+                "country_code": item["country_code"],
+                "coordinates": item["coordinates"],
+                "has_error": item["has_error"],
+                "title": item["headline"], # Map headline to title
+                "error_details": item["error_detail"] # Map error_detail to error_details
+            }
+            
+            await websocket.send_json(payload)
+            
+            # Variable delay to simulate real-time feed
+            await asyncio.sleep(random.uniform(0.5, 2.0))
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        # Normal disconnect or error
+        pass
+
 
 @app.get("/")
 def read_root():
