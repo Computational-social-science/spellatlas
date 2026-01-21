@@ -167,6 +167,9 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         idx = 0
         while True:
+            # Check for disconnects (though we are mostly sending)
+            # await websocket.receive_text() # Blocking receive would pause sending
+            
             if replay_queue:
                 # Cycle through errors to simulate activity
                 item = replay_queue[idx % len(replay_queue)]
