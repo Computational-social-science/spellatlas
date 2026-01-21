@@ -65,11 +65,13 @@ class DataStorage:
                         raise e
         except Exception as e:
             print(f"CRITICAL: Error initializing PostgreSQL connection pool: {e}")
-            # In a strict "No SQLite" mode, we should probably exit or raise.
-            # But to prevent crash loop during setup, we might keep running but functionality will be broken.
-            raise e
+            print("WARNING: Running in NO-DB mode. Some features will be limited.")
+            self.use_postgres = False
+            self.pg_pool = None
 
-        self._init_db()
+        if self.use_postgres:
+            self._init_db()
+        
         self.load_data()
 
     @contextmanager
@@ -82,7 +84,11 @@ class DataStorage:
                 yield conn
             else:
                 # Should not happen if initialization succeeded, but just in case
-                raise Exception("PostgreSQL connection pool not initialized")
+                # Return a dummy context if NO-DB mode to prevent crashes in context managers
+                if not self.use_postgres:
+                    yield None
+                else:
+                    raise Exception("PostgreSQL connection pool not initialized")
         finally:
             if conn and self.pg_pool:
                 self.pg_pool.putconn(conn)
@@ -161,6 +167,9 @@ class DataStorage:
 
     def _sync_db(self):
         """Sync DB with JSON data if DB is empty."""
+        if not self.use_postgres:
+            return
+
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
@@ -200,6 +209,11 @@ class DataStorage:
 
     def _refresh_stats_cache(self):
         """Compute aggregated stats from DB."""
+        if not self.use_postgres:
+            # Fallback: Compute stats from JSON in memory if DB is down
+            self._compute_stats_from_json()
+            return
+
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
@@ -255,6 +269,66 @@ class DataStorage:
                     "top_errors": top_errors
                 }
 
+    def _compute_stats_from_json(self):
+        """Fallback: Compute stats from self.data in memory."""
+        from collections import Counter
+        
+        # 1. Global Top Errors
+        all_words = []
+        for article in self.data:
+            for err in article.get("errors", []):
+                all_words.append(err.get("word", "").lower())
+        
+        word_counts = Counter(all_words)
+        self.global_top_errors = [{"word": w, "count": c} for w, c in word_counts.most_common(20)]
+        
+        # 2. Country Stats
+        self.stats = {}
+        country_data = {} # code -> {total: 0, errors: 0, words: []}
+        
+        for article in self.data:
+            c_name = article.get("country", "Unknown")
+            meta = self.countries_map.get(c_name)
+            if not meta: continue
+            
+            c_code = meta["code"]
+            if c_code not in country_data:
+                country_data[c_code] = {"total": 0, "errors": 0, "words": []}
+            
+            # Since self.data structure might be article-based or flat error based?
+            # get_raw_data returns list of articles.
+            # Assuming article has 'errors' list.
+            # Wait, DB counts 'error_events'. JSON is articles.
+            # If JSON is articles, total count of ERRORS is sum of len(errors).
+            
+            errors = article.get("errors", [])
+            err_count = len(errors)
+            
+            # In DB logic: COUNT(*) FROM error_events GROUP BY country_code
+            # This counts individual errors.
+            country_data[c_code]["total"] += err_count
+            country_data[c_code]["errors"] += err_count
+            
+            for err in errors:
+                country_data[c_code]["words"].append(err.get("word", "").lower())
+                
+        for code, data in country_data.items():
+            meta = next((c for c in DATA["COUNTRIES"] if c["code"] == code), None)
+            if not meta: continue
+            
+            top_words = Counter(data["words"]).most_common(5)
+            
+            self.stats[code] = {
+                "name": meta["name"],
+                "code": code,
+                "total": data["total"],
+                "errors": data["errors"],
+                "lat": meta["lat"],
+                "lng": meta["lng"],
+                "region": meta["region"],
+                "top_errors": [{"word": w, "count": c} for w, c in top_words]
+            }
+
     def get_stats(self):
         return self.stats
 
@@ -262,6 +336,9 @@ class DataStorage:
         return self.global_top_errors[:limit]
 
     def get_error_trends(self, hours=24):
+        if not self.use_postgres:
+            return [] # Not supported in NO-DB mode for now
+            
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
@@ -279,6 +356,9 @@ class DataStorage:
             return trends
 
     def get_error_curve(self, hours=24):
+        if not self.use_postgres:
+            return [] # Not supported in NO-DB mode for now
+
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
@@ -297,6 +377,31 @@ class DataStorage:
 
     def get_raw_data(self):
         return self.data
+    
+    def register_snapshot(self, s3_key, count):
+        """Register a new raw news snapshot."""
+        if not self.use_postgres:
+            return
+            
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO news_snapshots (s3_key, article_count) VALUES (%s, %s)",
+                (s3_key, count)
+            )
+            conn.commit()
+            print(f"Registered snapshot: {s3_key}")
+
+    def get_latest_snapshot(self):
+        """Get the most recent news snapshot."""
+        if not self.use_postgres:
+            return None
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT s3_key FROM news_snapshots ORDER BY created_at DESC LIMIT 1")
+            row = cursor.fetchone()
+            return row[0] if row else None
 
     def get_global_summary(self):
         total_errors = sum(s["total"] for s in self.stats.values())
