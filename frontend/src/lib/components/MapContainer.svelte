@@ -94,7 +94,10 @@
 
             // Fetch Initial Map Stats
             try {
-                const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+                // Robust fallback: If env var is missing, guess based on environment
+                const apiBase = import.meta.env.VITE_API_URL || 
+                                (window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://spellatlas-backend-production.fly.dev');
+                
                 const statsRes = await fetch(`${apiBase}/api/map-data`);
                 if (statsRes.ok) {
                     const statsData = await statsRes.json();
