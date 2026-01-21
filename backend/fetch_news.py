@@ -133,7 +133,7 @@ async def main():
     print(f"Requested: {len(articles)}")
     print(f"Successfully Scraped: {len(results)}")
     
-    # 3. Upload to S3 and Register in DB
+    # 3. Save to local file
     if not results:
         print("No results to save.")
         return
@@ -141,41 +141,14 @@ async def main():
     # Prepare JSON
     json_data = json.dumps(results, indent=2, ensure_ascii=False)
     
-    # Generate S3 Key
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
-    s3_key = f"raw_news/news_{timestamp}.json"
+    output_dir = "data"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, "sample_news_scraped.json")
     
-    # Save to temp file for upload (S3Client expects file path)
-    temp_file = f"temp_{timestamp}.json"
-    with open(temp_file, "w", encoding="utf-8") as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         f.write(json_data)
         
-    print(f"\nUploading to Object Storage (Key: {s3_key})...")
-    s3 = S3Client()
-    success = s3.upload_file(temp_file, s3_key)
-    
-    # Clean up temp file
-    if os.path.exists(temp_file):
-        os.remove(temp_file)
-        
-    if success:
-        print("Upload successful.")
-        try:
-            print("Registering snapshot in Database...")
-            storage = DataStorage()
-            storage.register_snapshot(s3_key, len(results))
-            print("Snapshot registered.")
-        except Exception as e:
-            print(f"Failed to register snapshot in DB: {e}")
-    else:
-        print("Upload failed. Dumping to local fallback.")
-        # Fallback to local
-        output_dir = "data"
-        os.makedirs(output_dir, exist_ok=True)
-        output_file = os.path.join(output_dir, "sample_news_scraped.json")
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write(json_data)
-        print(f"Saved fallback to {output_file}")
+    print(f"Saved scraped news to {output_file}")
 
     # Show a sample
     if results:

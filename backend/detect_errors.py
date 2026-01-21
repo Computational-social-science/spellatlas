@@ -188,8 +188,8 @@ class SpellDetectionPipeline:
         print("\n[Resource Check]")
         self.ensure_nltk()
         
-        # 2.5 Try to fetch from S3
-        self.fetch_latest_data()
+        # 2.5 Try to fetch from S3 (REMOVED: Stale Architecture)
+        # self.fetch_latest_data()
         
         if not os.path.exists(self.input_file):
             print(f"Error: Input file {self.input_file} not found.")

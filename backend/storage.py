@@ -115,36 +115,7 @@ class DataStorage:
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_country ON error_events(country_code)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_word ON error_events(word)')
             
-            # News Snapshots Table (for S3 references)
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS news_snapshots (
-                    id SERIAL PRIMARY KEY,
-                    s3_key TEXT NOT NULL,
-                    article_count INTEGER,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
             conn.commit()
-
-    def register_snapshot(self, s3_key, count):
-        """Register a new raw news snapshot."""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO news_snapshots (s3_key, article_count) VALUES (%s, %s)",
-                (s3_key, count)
-            )
-            conn.commit()
-            print(f"Registered snapshot: {s3_key}")
-
-    def get_latest_snapshot(self):
-        """Get the most recent news snapshot."""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT s3_key FROM news_snapshots ORDER BY created_at DESC LIMIT 1")
-            row = cursor.fetchone()
-            return row[0] if row else None
 
     def load_data(self):
         """Load data from JSON and sync to DB if needed."""
