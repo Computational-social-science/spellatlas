@@ -1,99 +1,99 @@
 <script>
-  import { onMount, createEventDispatcher } from 'svelte';
-  import { scale } from 'svelte/transition';
-  import { quintOut } from 'svelte/easing';
-  import { windowState } from '../stores.js';
+import { onMount, createEventDispatcher } from 'svelte';
+import { scale } from 'svelte/transition';
+import { quintOut } from 'svelte/easing';
+import { windowState } from '../stores.js';
 
-  /** @type {string} */
-  export let id;
-  export let title = 'WINDOW';
-  export let icon = '⬜';
-  export let initialX = 100;
-  export let initialY = 100;
+/** @type {string} */
+export let id;
+export let title = 'WINDOW';
+export let icon = '⬜';
+export let initialX = 100;
+export let initialY = 100;
 
-  /** @type {HTMLElement} */
-  let element;
-  let isDragging = false;
-  let dragOffset = { x: 0, y: 0 };
+/** @type {HTMLElement} */
+let element;
+let isDragging = false;
+let dragOffset = { x: 0, y: 0 };
 
-  const dispatch = createEventDispatcher();
+const dispatch = createEventDispatcher();
 
-  // Initialize store if not present
-  onMount(() => {
-    windowState.update(s => {
-      /** @type {any} */
-      const state = s;
-      if (!state[id]) {
-        return {
-          ...s,
-          [id]: { visible: true, minimized: false, maximized: false, position: { x: initialX, y: initialY } }
-        };
-      }
-      return s;
-    });
+// Initialize store if not present
+onMount(() => {
+  windowState.update(s => {
+    /** @type {any} */
+    const state = s;
+    if (!state[id]) {
+      return {
+        ...s,
+        [id]: { visible: true, minimized: false, maximized: false, position: { x: initialX, y: initialY } }
+      };
+    }
+    return s;
   });
+});
 
+// @ts-ignore
+$: state = $windowState[id] || { visible: false, minimized: false, maximized: false, position: { x: initialX, y: initialY } };
+
+/** @param {MouseEvent} e */
+function startDrag(e) {
   // @ts-ignore
-  $: state = $windowState[id] || { visible: false, minimized: false, maximized: false, position: { x: initialX, y: initialY } };
+  if (state.maximized) return;
+  isDragging = true;
+  // @ts-ignore
+  dragOffset.x = e.clientX - state.position.x;
+  // @ts-ignore
+  dragOffset.y = e.clientY - state.position.y;
+  
+  window.addEventListener('mousemove', handleDrag);
+  window.addEventListener('mouseup', stopDrag);
+}
 
-  /** @param {MouseEvent} e */
-  function startDrag(e) {
-    // @ts-ignore
-    if (state.maximized) return;
-    isDragging = true;
-    // @ts-ignore
-    dragOffset.x = e.clientX - state.position.x;
-    // @ts-ignore
-    dragOffset.y = e.clientY - state.position.y;
-    
-    window.addEventListener('mousemove', handleDrag);
-    window.addEventListener('mouseup', stopDrag);
-  }
+/** @param {MouseEvent} e */
+function handleDrag(e) {
+  if (!isDragging) return;
+  
+  const newX = e.clientX - dragOffset.x;
+  const newY = e.clientY - dragOffset.y;
+  
+  windowState.update(s => {
+    /** @type {any} */
+    const state = s;
+    return {
+      ...state,
+      [id]: { ...state[id], position: { x: newX, y: newY } }
+    };
+  });
+}
 
-  /** @param {MouseEvent} e */
-  function handleDrag(e) {
-    if (!isDragging) return;
-    
-    const newX = e.clientX - dragOffset.x;
-    const newY = e.clientY - dragOffset.y;
-    
-    windowState.update(s => {
-      /** @type {any} */
-      const state = s;
-      return {
-        ...state,
-        [id]: { ...state[id], position: { x: newX, y: newY } }
-      };
-    });
-  }
+function stopDrag() {
+  isDragging = false;
+  window.removeEventListener('mousemove', handleDrag);
+  window.removeEventListener('mouseup', stopDrag);
+}
 
-  function stopDrag() {
-    isDragging = false;
-    window.removeEventListener('mousemove', handleDrag);
-    window.removeEventListener('mouseup', stopDrag);
-  }
+function toggleMinimize() {
+  windowState.update(s => {
+    /** @type {any} */
+    const state = s;
+    return {
+      ...state,
+      [id]: { ...state[id], minimized: !state[id].minimized }
+    };
+  });
+}
 
-  function toggleMinimize() {
-    windowState.update(s => {
-      /** @type {any} */
-      const state = s;
-      return {
-        ...state,
-        [id]: { ...state[id], minimized: !state[id].minimized }
-      };
-    });
-  }
-
-  function closeWindow() {
-    windowState.update(s => {
-      /** @type {any} */
-      const state = s;
-      return {
-        ...state,
-        [id]: { ...state[id], visible: false }
-      };
-    });
-  }
+function closeWindow() {
+  windowState.update(s => {
+    /** @type {any} */
+    const state = s;
+    return {
+      ...state,
+      [id]: { ...state[id], visible: false }
+    };
+  });
+}
 </script>
 
 {#if state.visible}
