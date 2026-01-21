@@ -18,6 +18,10 @@ class DataStorage:
         self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.errors_path = os.path.join(self.base_dir, "data", "detected_errors.json")
         self.db_path = os.path.join(self.base_dir, "data", "stats.db")
+        
+        # Ensure data directory exists
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        
         self.countries_map = {c["name"]: c for c in DATA["COUNTRIES"]}
         self.data = []
         self.stats = {} # Cache for map stats

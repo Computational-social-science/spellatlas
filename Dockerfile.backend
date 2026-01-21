@@ -21,7 +21,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY backend ./backend
-COPY data ./data
+# Create data directory structure (files are not copied to keep image small and avoid gitignore issues)
+# Data will be loaded from Supabase or mounted volume if needed
+RUN mkdir -p data
 
 # Expose port
 EXPOSE 8000
