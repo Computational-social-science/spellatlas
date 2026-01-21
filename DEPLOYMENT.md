@@ -23,7 +23,8 @@ We will deploy the backend first to obtain the API URL.
     -   **Name**: `spellatlas-backend` (or similar)
     -   **Language/Runtime**: `Docker`
     -   **Root Directory**: `.` (Leave default)
-    -   **Dockerfile Path**: `Dockerfile.backend` (Important: Specify this filename)
+        -   *Important*: Do NOT set this to `backend`. We need the root context to access the `data/` folder.
+    -   **Dockerfile Path**: `backend/Dockerfile`
     -   **Region**: Choose one close to you (e.g., Singapore, Oregon).
     -   **Instance Type**: Free (if available) or Starter.
 

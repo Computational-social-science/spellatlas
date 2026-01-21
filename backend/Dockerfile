@@ -13,19 +13,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements file (adjusting path for Docker context)
-COPY requirements.txt .
+# Copy requirements file (Assuming Build Context is Project Root)
+COPY backend/requirements.txt .
 
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code (adjusting paths for Docker context)
-# Assuming build context is 'backend' directory
-COPY . .
+# Copy source code (Assuming Build Context is Project Root)
+COPY backend ./backend
+COPY data ./data
 
 # Expose port
 EXPOSE 8000
 
 # Command to run the application
-# Use shell form to allow variable expansion of $PORT
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Using shell form to support variable expansion for Render's PORT
+CMD uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}
