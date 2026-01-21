@@ -1,37 +1,37 @@
 <script>
-import { onMount, createEventDispatcher } from 'svelte';
-import { scale } from 'svelte/transition';
-import { quintOut } from 'svelte/easing';
-import { windowState } from '../stores.js';
+  import { onMount, createEventDispatcher } from 'svelte';
+  import { scale } from 'svelte/transition';
+  import { quintOut } from 'svelte/easing';
+  import { windowState } from '../stores.js';
 
-/** @type {string} */
-export let id;
-export let title = 'WINDOW';
-export let icon = '⬜';
-export let initialX = 100;
-export let initialY = 100;
+  /** @type {string} */
+  export let id;
+  export let title = 'WINDOW';
+  export let icon = '⬜';
+  export let initialX = 100;
+  export let initialY = 100;
 
-/** @type {HTMLElement} */
-let element;
-let isDragging = false;
-let dragOffset = { x: 0, y: 0 };
+  /** @type {HTMLElement} */
+  let element;
+  let isDragging = false;
+  let dragOffset = { x: 0, y: 0 };
 
-const dispatch = createEventDispatcher();
+  const dispatch = createEventDispatcher();
 
-// Initialize store if not present
-onMount(() => {
-  windowState.update(s => {
-    /** @type {any} */
-    const state = s;
-    if (!state[id]) {
-      return {
-        ...s,
-        [id]: { visible: true, minimized: false, maximized: false, position: { x: initialX, y: initialY } }
-      };
-    }
-    return s;
+  // Initialize store if not present
+  onMount(() => {
+    windowState.update(s => {
+      /** @type {any} */
+      const state = s;
+      if (!state[id]) {
+        return {
+          ...s,
+          [id]: { visible: true, minimized: false, maximized: false, position: { x: initialX, y: initialY } }
+        };
+      }
+      return s;
+    });
   });
-});
 
 // @ts-ignore
 $: state = $windowState[id] || { visible: false, minimized: false, maximized: false, position: { x: initialX, y: initialY } };

@@ -8,7 +8,11 @@
     let snapshotId;
 
     function connectWebSocket() {
-        const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
+        // Robust fallback: If env var is missing, guess based on environment
+        const wsUrl = import.meta.env.VITE_WS_URL || 
+                      (window.location.hostname === 'localhost' ? 'ws://localhost:8000' : 'wss://spellatlas-backend-production.fly.dev');
+        
+        console.log('Connecting to WebSocket:', `${wsUrl}/ws`);
         socket = new WebSocket(`${wsUrl}/ws`);
 
         socket.onopen = () => {
