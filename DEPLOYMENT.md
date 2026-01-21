@@ -45,7 +45,34 @@ On the free tier, the disk is ephemeral. The database (`stats.db`) will reset on
 
 ---
 
-## Part 2: Frontend Deployment (Vercel)
+## 5. Database Setup (Supabase) - Recommended
+
+To ensure data persistence (prevent data loss on restart), we will use Supabase (PostgreSQL).
+
+1.  **Create Project**:
+    -   Go to [Supabase](https://supabase.com/) and create a new project.
+    -   Set a strong database password.
+    -   Wait for the project to initialize.
+
+2.  **Get Connection String**:
+    -   Go to **Project Settings** -> **Database**.
+    -   Under **Connection string**, select **URI**.
+    -   Copy the string. It looks like: `postgresql://postgres:[YOUR-PASSWORD]@db.xxx.supabase.co:5432/postgres`
+
+3.  **Configure Render**:
+    -   Go to your Render Dashboard -> Select `spellatlas-backend`.
+    -   Click **Environment**.
+    -   Add a new Environment Variable:
+        -   **Key**: `DATABASE_URL`
+        -   **Value**: Paste your Supabase connection string (Replace `[YOUR-PASSWORD]` with your actual password).
+    -   Click **Save Changes**.
+
+4.  **Verify**:
+    -   Render will automatically redeploy (or you can trigger a manual deploy).
+    -   Check the logs. You should see: `Using PostgreSQL database.`
+    -   The application will automatically create the necessary tables and import existing data from `detected_errors.json` if the database is empty.
+
+## 6. Frontend Deployment (Vercel)
 
 1.  **New Project**:
     -   Log in to Vercel dashboard.
